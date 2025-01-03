@@ -1,1 +1,14 @@
  
+
+{
+
+    "compilerOptions": {
+  
+      // other options
+  
+      "esModuleInterop": true
+  
+    }
+  
+  }
+  
