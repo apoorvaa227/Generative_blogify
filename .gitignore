@@ -1,6 +1,8 @@
  
 node_modules/
+.env
 .env.example
+
 **/temp/*
 db/connect.js
 DBseeder/dev-utils/get-blogs-by-each-user.js
