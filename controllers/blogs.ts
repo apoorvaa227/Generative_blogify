@@ -239,7 +239,9 @@ success: true,
 msg: "Blog Created Successfully",
 })
 }
-const deleteBlog = async (req: Request, res: Response) => {
+
+
+export const deleteBlog = async (req: Request, res: Response): Promise<void> => {
     const userId = getUserId(req);
     const blogId = getBlogId(req);
   
@@ -248,7 +250,7 @@ const deleteBlog = async (req: Request, res: Response) => {
   
     const blogIndex = userBlogs.blogs.indexOf(blogId as any);
     if (blogIndex === -1)
-      return res.status(404).json({ error: "Blog not found" });
+      throw new BadRequestError("Blog not found");
   
     const blog = await Blog.findByIdAndDelete(blogId);
     if (!blog) throw new BadRequestError("Error deleting blog");
@@ -286,14 +288,15 @@ const deleteBlog = async (req: Request, res: Response) => {
     });
   };
   
-  const getTrendingBlogs = async (req: Request, res: Response) => {
+  export const getTrendingBlogs = async (req: Request, res: Response): Promise<void> => {
     const cachedData = trendingCache.get("trendingPosts");
     if (cachedData) {
-      return res.status(StatusCodes.OK).json({
+      res.status(StatusCodes.OK).json({
         data: { blogs: cachedData },
         success: true,
         msg: "Data Fetched Successfully",
       });
+      return;
     }
   
     const oneWeekAgo = new Date();
@@ -339,7 +342,7 @@ const deleteBlog = async (req: Request, res: Response) => {
   
   export {
     getBlogById,
-    getTrendingBlogs,
+   
     getRecommendedBlogs,
     getBlogByCategory,
     likeBlog,
@@ -348,6 +351,6 @@ const deleteBlog = async (req: Request, res: Response) => {
     getOtherUserBlogs,
     getUserBlogById,
     createBlog,
-    deleteBlog,
+ 
     updateBlog,
   };

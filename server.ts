@@ -16,7 +16,7 @@ dotenv.config();
 import connectDB from "./db/connect";
 
 // Import Routes
-import ApiRoute from "./routes/api/v1";
+import ApiRoute from "./routes/apiv1";
 // Import Middleware
 import paginateMW from "./middleware/paginator";
 // Import Error Handler
@@ -89,7 +89,7 @@ app.use("/assets", express.static("./client/dist/assets"));
 app.use("/hello", (req: Request, res: Response) => {
   res.status(200).json({ message: "Hello World" });
 });
-app.use("/api/v1", ApiRoute);
+app.use("/apiv1", ApiRoute);
 
 // Define Routes Here
 app.use((err: Error | CustomAPIError | mongoose.Error | multer.MulterError, req: Request, res: Response, next: NextFunction) => {

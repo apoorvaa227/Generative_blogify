@@ -2,6 +2,7 @@ import User from "../models/user";
 import { StatusCodes } from "http-status-codes";
 import { BadRequestError, UnauthenticatedError } from "../errors";
 import { Request, Response } from "express";
+import { RequestHandler } from "express";
 import mongoose from "mongoose";
 import {
   uploadProfileImage as cloudinaryUploadProfileImage,
@@ -10,6 +11,17 @@ import {
   deleteAssetImages as cloudinaryDeleteAssetImages,
  
 } from "../utils/imageHandlers/cloudinary";
+
+
+
+
+
+
+
+
+
+
+
 
 const updateUser = async (userId: mongoose.Types.ObjectId, key: string, value: any) => {
   const user = await User.findById(userId);
@@ -82,12 +94,14 @@ const getAllAssets = async (req: Request, res: Response) => {
   });
 };
 
-const uploadAssets = async (req: Request & { files?: Express.Multer.File[] }, res: Response) => {
+export const uploadAssets: RequestHandler = async (req, res) => {
+
   const userId = req.user.userId;
   if (!req.files || req.files.length === 0)
     throw new BadRequestError("Files are required");
 
-  const cloudinary_img_urls = await cloudinaryUploadAssetsImages(req.files);
+  const filesArray = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
+  const cloudinary_img_urls = await cloudinaryUploadAssetsImages(filesArray);
   await User.findByIdAndUpdate(userId, { $push: { myAssets: { $each: cloudinary_img_urls } } });
 
   res.status(StatusCodes.OK).json({
@@ -160,7 +174,7 @@ export {
   updateProfileImage,
   deleteProfileImage,
   getAllAssets,
-  uploadAssets,
+ 
   deleteAsset,
   followUnfollowUser,
   isFollowing,

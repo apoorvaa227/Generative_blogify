@@ -48,7 +48,7 @@ const setAuthTokenCookies = (res: Response, user: IUser) => {
         });
     };
 
-    const register = async (req: Request, res: Response) => {
+    export const register = async (req: Request, res: Response): Promise<void> => {
         const { firstName, lastName, email, password } = req.body;
         if (!firstName || !lastName || !email || !password) {
             throw new BadRequestError("Please provide all required fields.");
@@ -58,10 +58,12 @@ const setAuthTokenCookies = (res: Response, user: IUser) => {
         const userExist = await User.findOne({ email });
         if (userExist) {
             if (userExist.status === "active") {
-                return res.status(StatusCodes.CONFLICT).json({ success: false, msg: "User already exists" });
+                res.status(StatusCodes.CONFLICT).json({ success: false, msg: "User already exists" });
+                return;
             }
             if (userExist.status === "blocked") {
-                return res.status(StatusCodes.FORBIDDEN).json({ success: false, msg: "User is blocked" });
+                res.status(StatusCodes.FORBIDDEN).json({ success: false, msg: "User is blocked" });
+                return;
             }
         }
 
@@ -209,7 +211,7 @@ const continueWithGoogle = async (req: Request, res: Response) => {
 
 
 export {
-register,
+
 login,
 continueWithGoogle,
 verifyEmail,

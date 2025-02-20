@@ -1,6 +1,6 @@
 import User from "../models/user"
 import Blog from "../models/blog" 
-import { Request, Response } from "express"
+import { Request, Response, NextFunction } from "express"
 import { StatusCodes } from "http-status-codes"
 import { BadRequestError } from "../errors"
 import mongoose from "mongoose"
@@ -12,7 +12,8 @@ return new mongoose.Types.ObjectId(id)
 throw new BadRequestError("Id is not a valid Object")
 }
 }
-const getUserProfile = async (req: Request, res: Response) => {
+
+export const getUserProfile = async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
 const { userId } = req.params
 const matchedUsers = await User.aggregate([
 { $match: { _id: getId(userId) } },
@@ -48,4 +49,4 @@ success: true,
 msg: "User Fetched Successfully",
 })
 }
-export { getUserProfile }
+export default getUserProfile

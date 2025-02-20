@@ -1,6 +1,6 @@
 import User from "../models/user";
 import Blogs from "../models/blog";
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { BadRequestError } from "../errors";
 import { StatusCodes } from "http-status-codes";
 import natural from "natural";
@@ -29,7 +29,8 @@ const getSynonyms = (word: string): Promise<string[]> => {
 };
 
 // Search Function for Users and Blogs
-const search = async (req: Request, res: Response) => {
+
+export const search = async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
   try {
     const { type, query } = req.query;
 
@@ -112,6 +113,17 @@ const search = async (req: Request, res: Response) => {
       error: (error as any).message,
     });
   }
+
 };
 
-export { search };
+export default { search };
+
+
+
+
+
+
+
+
+
+
