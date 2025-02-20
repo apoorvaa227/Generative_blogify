@@ -1,220 +1,93 @@
-import User from "../models/user";
+import axios from "axios";
 import { StatusCodes } from "http-status-codes";
-import { BadRequestError, UnauthenticatedError } from "../errors";
-import { IUser, OTP } from "../types/models";
+import { BadRequestError } from "../errors";
 import { Request, Response } from "express";
-import SendMail from "../utils/sendMail";
-import { OAuth2Client } from "google-auth-library";
-const client = new OAuth2Client()
 
-const setAuthTokenCookies = (res: Response, user: IUser) => {
-    const token = user.generateToken();
-    res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        expires: new Date(Date.now() + parseInt(process.env.JWT_LIFETIME as string) * 1000 * 24 * 60 * 60),
-    });
-    //to indicate frontend that user is logged in
-    res.cookie("userId", user._id, {
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    expires: new Date(
-    Date.now() +
-    parseInt(process.env.JWT_LIFETIME as string) *
-    1000 *
-    24 *
-    60 *
-    60,
-    ),
-    })
+// Generate Text Suggestion using Hugging Face API
+const getTextSuggestion = async (req: Request, res: Response) => {
+  try {
+    const text = req.query.text as string;
+
+    if (!text) {
+      throw new BadRequestError("Please provide a 'text' for suggestion.");
     }
-    
-    const sendUserData = (user: IUser, res: Response, msg: string) => {
-        setAuthTokenCookies(res, user);
-        res.status(StatusCodes.CREATED).json({
-            data: {
-                userId: user._id,
-                name: user.name,
-                email: user.email,
-                bio: user.bio,
-                profileImage: user.profileImage,
-                myInterests: user.myInterests,
-                followingCount: user.following.length,
-                followersCount: user.followers.length,
-            },
-            success: true,
-            msg,
-        });
-    };
 
-    const register = async (req: Request, res: Response) => {
-        const { firstName, lastName, email, password } = req.body;
-        if (!firstName || !lastName || !email || !password) {
-            throw new BadRequestError("Please provide all required fields.");
-        }
-        
-        const name = `${firstName} ${lastName}`;
-        const userExist = await User.findOne({ email });
-        if (userExist) {
-            if (userExist.status === "active") {
-                return res.status(StatusCodes.CONFLICT).json({ success: false, msg: "User already exists" });
-            }
-            if (userExist.status === "blocked") {
-                return res.status(StatusCodes.FORBIDDEN).json({ success: false, msg: "User is blocked" });
-            }
-        }
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/meta-llama/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+        },
+        body: JSON.stringify({
+          inputs: text,
+          parameters: { max_new_tokens: 25 },
+        }),
+      }
+    );
 
-
-        const otpCode = Math.floor(100000 + Math.random() * 900000);
-    const otp: OTP = { value: otpCode.toString(), expires: new Date(Date.now() + 10 * 60 * 1000) };
-    
-    let user = userExist && userExist.status === "inactive"
-        ? await User.findByIdAndUpdate(userExist._id, { name, email, password, otp }, { new: true })
-        : await User.create({ name, email, password, status: "inactive", otp });
-    
-    await SendMail({
-        from: process.env.SMTP_EMAIL_USER,
-        to: email,
-        subject: "Blogmind: Email Verification",
-        text: `Your OTP is ${otpCode}`,
-        html: `<h1>Your OTP is <strong>${otpCode}</strong></h1>`
-    });
-    
-    res.status(StatusCodes.CREATED).json({ success: true, msg: "OTP sent to email." });
-};
-   
-
-
-const forgotPasswordSendOtp = async (req: Request, res: Response) => {
-    const { email } = req.body;
-    if (!email) throw new BadRequestError("Please provide email.");
-    
-    const user = await User.findOne({ email });
-    if (!user) throw new UnauthenticatedError("Email not registered.");
-    
-    const otpCode = Math.floor(100000 + Math.random() * 900000);
-    user.otp = { value: otpCode.toString(), expires: new Date(Date.now() + 10 * 60 * 1000) };
-    await user.save();
-    
-    await SendMail({
-        from: process.env.SMTP_EMAIL_USER,
-        to: email,
-        subject: "Blogmind: Reset Password",
-        text: `Your OTP is ${otpCode}`,
-        html: `<h1>Your OTP is <strong>${otpCode}</strong></h1>`
-    });
-    
-    res.status(StatusCodes.CREATED).json({ success: true, msg: "OTP sent to email." });
-};
-
-
-
-
-const forgotPasswordVerifyOtp = async (req: Request, res: Response) => {
-    const { otp, email, password } = req.body;
-    if (!otp || !password) throw new BadRequestError("Please provide OTP and new password.");
-    
-    const user = await User.findOne({ email, "otp.value": otp });
-    if (!user) throw new UnauthenticatedError("Invalid OTP.");
-    if (!user.otp || user.otp.expires < new Date()) throw new UnauthenticatedError("OTP expired.");
-    
-    user.otp = undefined;
-    user.password = password;
-    
-    await user.save();
-    
-    setAuthTokenCookies(res, user);
-    res.status(StatusCodes.CREATED).json({ success: true, msg: "Password changed successfully." });
-};
-
-
-const verifyEmail = async (req: Request, res: Response) => {
-    const { otp, userId } = req.body;
-    if (!otp) throw new BadRequestError("Please provide OTP.");
-    
-    const user = await User.findById(userId);
-    if (!user || user.otp?.value !== otp) throw new UnauthenticatedError("Invalid OTP.");
-    if (!user.otp || user.otp.expires.getTime() < Date.now())
-        throw new UnauthenticatedError("OTP expired.");
-   
-
-    user.status = "active";
-    user.otp = undefined;
-    await user.save();
-    setAuthTokenCookies(res, user);
-    
-    res.status(StatusCodes.CREATED).json({ success: true, msg: "User registered successfully." });
-};
-
-const login = async (req: Request, res: Response) => {
-    const { email, password } = req.body;
-    if (!email) throw new BadRequestError("Please provide email.");
-if (!password) throw new BadRequestError("Please provide password.");
-
-    const user = await User.findOne({ email });
-    if (!user) throw new UnauthenticatedError("Email not registered.");
-    if (user.status === "inactive") throw new UnauthenticatedError("User is inactive.");
-    if (user.status === "blocked") throw new UnauthenticatedError("User is blocked.");
-    if (!user.password) throw new UnauthenticatedError("Please login with Google or reset your password.");
-    
-    const isPasswordCorrect = await user.comparePassword(password);
-    if (!isPasswordCorrect) throw new UnauthenticatedError("Invalid credentials.");
-    
-    setAuthTokenCookies(res, user);
-    res.status(StatusCodes.OK).json({ success: true, msg: "User Login Successfully" });
-};
-
-const tokenLogin = async (req: Request, res: Response) => {
-    const user = await User.findById(req.user.userId);
-    if (!user) throw new UnauthenticatedError("User not found.");
-    if (user.status === "blocked") throw new UnauthenticatedError("User is blocked.");
-    if (user.status === "inactive") throw new UnauthenticatedError("User is inactive.");
-    
-    sendUserData(user, res, "User Login Successfully");
-};
-
-const signOut = async (req: Request, res: Response) => {
-    Object.keys(req.cookies).forEach(cookie => res.clearCookie(cookie));
-    res.status(StatusCodes.OK).json({ success: true, msg: "User Logout Successfully" });
-};
-
-const continueWithGoogle = async (req: Request, res: Response) => {
-    const { tokenId } = req.body;
-    let payload: any = null;
-    
-    try {
-        const ticket = await client.verifyIdToken({
-            idToken: tokenId,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
-        payload = ticket.getPayload();
-    } catch (error) {
-        console.log(error);
-        throw new BadRequestError("Invalid Token");
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.statusText}`);
     }
-    
-    const { email, name, picture } = payload;
-    let user = await User.findOne({ email });
-    
-    if (user) {
-        if (user.status === "blocked") throw new UnauthenticatedError("User is blocked.");
-    } else {
-        user = await User.create({ email, name, profileImage: picture, status: "active" });
-    }
-    
-    setAuthTokenCookies(res, user);
-    res.status(StatusCodes.CREATED).json({ success: true, msg: "Google Login Successfully" });
+
+    const data = await response.json();
+    const generated_text = data[0]?.generated_text || "No text generated.";
+
+    res.status(StatusCodes.OK).json({
+      data: generated_text,
+      success: true,
+      msg: "Text suggestion fetched successfully.",
+    });
+  } catch (error) {
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      msg: "Failed to fetch text suggestion.",
+      error: (error as Error).message,
+    });
+  }
 };
 
+// Generate Image Suggestion Prompt using Hugging Face API
+const getImageSuggestionPrompt = async (req: Request, res: Response) => {
+  try {
+    const prompt = req.query.prompt as string;
 
-export {
-register,
-login,
-continueWithGoogle,
-verifyEmail,
-tokenLogin,
-signOut,
-forgotPasswordSendOtp,
-forgotPasswordVerifyOtp,
-}
+    if (!prompt) {
+      throw new BadRequestError(
+        "Please provide a 'prompt' for image suggestion."
+      );
+    }
+
+    const response = await axios({
+      url: "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion",
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      data: JSON.stringify({ inputs: prompt }),
+      responseType: "stream",
+    });
+
+    if (response.status !== 200) {
+      throw new Error(`API Error: ${response.statusText}`);
+    }
+
+    // Set response headers
+    res.set(response.headers);
+    res.set("x-ai-generated-image", "true");
+    res.header("Access-Control-Expose-Headers", "x-ai-generated-image");
+
+    // Stream the response to the client
+    response.data.pipe(res);
+  } catch (error) {
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      msg: "Failed to fetch image suggestion.",
+      error: (error as Error).message,
+    });
+  }
+};
+
+export { getTextSuggestion, getImageSuggestionPrompt };
