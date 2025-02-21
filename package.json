@@ -9,6 +9,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@editorjs/checklist": "^1.6.0",
+    "@editorjs/code": "^2.9.3",
+    "@editorjs/editorjs": "^2.30.8",
+    "@editorjs/header": "^2.8.8",
+    "@editorjs/image": "^2.10.2",
+    "@editorjs/list": "^2.0.4",
+    "@editorjs/paragraph": "^2.11.7",
     "@types/mongoose": "^5.11.96",
     "@types/morgan": "^1.9.9",
     "@types/natural": "^5.1.5",
@@ -44,6 +51,9 @@
     "@types/node": "^22.10.4",
     "@types/node-cache": "^4.1.3",
     "@types/nodemailer": "^6.4.17",
-    "@types/streamifier": "^0.1.2"
+    "@types/streamifier": "^0.1.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.0.7"
   }
 }
